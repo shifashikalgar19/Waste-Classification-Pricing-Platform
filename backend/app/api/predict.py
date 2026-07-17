@@ -9,6 +9,12 @@ from app.pricing.engine import estimate_price
 
 router = APIRouter(tags=["Prediction"])
 
+@router.get("/price")
+def get_price(material: str, weight: float):
+    price_data = estimate_price(material=material, weight=weight, confidence=1.0)
+    return price_data
+
+
 @router.post("/predict")
 async def predict(
     image: UploadFile = File(...),
@@ -41,6 +47,12 @@ async def predict(
         (local_label, local_conf),
         (assist_label, assist_conf),
     )
+
+    if 0 < weight < 2:
+        raise HTTPException(
+            status_code=400, 
+            detail="Minimum order weight is 2kg. Please collect more scrap before placing an order."
+        )
 
     if weight <= 0:
         return {

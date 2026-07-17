@@ -25,7 +25,6 @@ export default function Signup() {
     e.preventDefault();
     setError("");
 
-    // 🔐 Password match check
     if (form.password !== form.confirmPassword) {
       setError("Passwords do not match");
       return;
@@ -37,7 +36,7 @@ export default function Signup() {
       await signupUser({
         email: form.email,
         password: form.password,
-        role: "user", // 🔒 forced
+        role: "user",
       });
 
       navigate("/login");

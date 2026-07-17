@@ -18,7 +18,7 @@ export default function UserOrders() {
   const [payoutConfigured, setPayoutConfigured] = useState(false);
 
   /* ================= CHECK IF USER HAS GLOBAL PAYOUT ================= */
-  const checkPayoutStatus = async () => {
+  const checkPayoutStatus = useCallback(async () => {
     try {
       const res = await fetch(`${API_BASE}/users/me`, {
         headers: {
@@ -33,7 +33,7 @@ export default function UserOrders() {
     } catch {
       setPayoutConfigured(false);
     }
-  };
+  }, [user]);
 
   /* ================= FETCH ORDERS ================= */
   const fetchOrders = useCallback(async () => {
@@ -64,7 +64,7 @@ export default function UserOrders() {
 
     const interval = setInterval(fetchOrders, 5000);
     return () => clearInterval(interval);
-  }, [fetchOrders]);
+  }, [fetchOrders, checkPayoutStatus]);
 
   /* ================= FILTER ================= */
   const filteredOrders = useMemo(() => {
@@ -120,11 +120,10 @@ export default function UserOrders() {
             <button
               key={f}
               onClick={() => setFilter(f)}
-              className={`px-5 py-2 rounded-full text-sm font-medium transition ${
-                filter === f
-                  ? "bg-cyan-500/20 text-cyan-400"
-                  : "bg-white/5 text-gray-400 hover:bg-white/10"
-              }`}
+              className={`px-5 py-2 rounded-full text-sm font-medium transition ${filter === f
+                ? "bg-cyan-500/20 text-cyan-400"
+                : "bg-white/5 text-gray-400 hover:bg-white/10"
+                }`}
             >
               {f.charAt(0).toUpperCase() + f.slice(1)}
             </button>
@@ -139,7 +138,7 @@ export default function UserOrders() {
               <tr>
                 <th className="px-6 py-5">Material</th>
                 <th className="px-6 py-5">Weight</th>
-                <th className="px-6 py-5">Estimated Price</th>
+                <th className="px-6 py-5">Price</th>
                 <th className="px-6 py-5">Status</th>
                 <th className="px-6 py-5">Created</th>
                 <th className="px-6 py-5">Action</th>
@@ -159,6 +158,7 @@ export default function UserOrders() {
                   <td className="px-6 py-5">
                     <span className={`px-4 py-1.5 rounded-full text-sm ${statusStyle(order)}`}>
                       {displayStatus(order)}
+                      {(order.status === "collected" || order.status === "completed") && " (FINAL)"}
                     </span>
                   </td>
 
@@ -188,7 +188,7 @@ export default function UserOrders() {
                         >
                           Enter Your Payout Details
                         </button>
-                    )}
+                      )}
 
                     {/* WHEN DELIVERY STARTS */}
                     {order.delivery_status === "in_transit" && (

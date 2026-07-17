@@ -16,6 +16,9 @@ from app.db.mongo import orders_collection, users_collection
 from app.core.security import get_current_user
 from app.services.assign_delivery import assign_nearest
 from app.services.geocoder import reverse_geocode
+from app.core.email import send_otp_email, send_order_approved_email, send_delivery_started_email, send_payment_success_email
+from app.pricing.engine import estimate_price
+from app.services.paypal import PayPalService
 
 router = APIRouter(prefix="/orders", tags=["Orders"])
 
@@ -58,6 +61,12 @@ def place_order(
     image: UploadFile = File(...),
     current_user: dict = Depends(get_current_user),
 ):
+    if weight < 2:
+        raise HTTPException(
+            status_code=400,
+            detail="Minimum order weight is 2kg. Please collect more scrap before placing an order."
+        )
+
     if current_user["role"] != "user":
         raise HTTPException(status_code=403, detail="Only users can place orders")
 
@@ -223,7 +232,6 @@ def get_all_orders(current_user: dict = Depends(get_current_user)):
             "collected_at": order.get("collected_at"),
             "completed_at": order.get("completed_at"),
 
-            # 👇 THIS IS THE FIX
             "user_email": user.get("email") if user else None,
             "payout_details": user.get("payout_details") if user else None,
         })
@@ -264,6 +272,13 @@ def approve_order(order_id: str, current_user: dict = Depends(get_current_user))
 
     chosen_agent = assign_nearest(order, delivery_agents)
 
+    assigned_agent = users_collection.find_one({"_id": chosen_agent["_id"]})
+    if not assigned_agent.get("location"):
+        raise HTTPException(
+            status_code=400,
+            detail="Please login delivery boy panel once for location sync"
+        )
+
     orders_collection.update_one(
         {"_id": oid},
         {
@@ -276,6 +291,16 @@ def approve_order(order_id: str, current_user: dict = Depends(get_current_user))
             }
         },
     )
+
+    # Send Approval Email
+    user = users_collection.find_one({"_id": order["user_id"]})
+    if user:
+        has_payout = "payout_details" in user and user["payout_details"]
+        send_order_approved_email(
+            to_email=user["email"],
+            user_name=user.get("payout_details", {}).get("full_name", "Valued User"),
+            has_payout_details=has_payout
+        )
 
     return {
         "message": "Order approved and delivery assigned",
@@ -338,6 +363,13 @@ def delivery_left(order_id: str, current_user: dict = Depends(get_current_user))
     if str(order.get("delivery_id")) != str(current_user["_id"]):
         raise HTTPException(status_code=403, detail="Not your order")
 
+    # Check delivery profile completion
+    if not current_user.get("full_name") or not current_user.get("phone_number"):
+        raise HTTPException(
+            status_code=400,
+            detail="Please complete your profile first (Name and Phone Number are required)"
+        )
+
     orders_collection.update_one(
         {"_id": oid},
         {
@@ -348,15 +380,26 @@ def delivery_left(order_id: str, current_user: dict = Depends(get_current_user))
         },
     )
 
+    # Send "Partner On The Way" Email
+    user = users_collection.find_one({"_id": order["user_id"]})
+    if user:
+        send_delivery_started_email(
+            to_email=user["email"],
+            user_name=user.get("payout_details", {}).get("full_name", "Valued User"),
+            delivery_name=current_user.get("full_name"),
+            delivery_phone=f"{current_user.get('country_code', '')} {current_user.get('phone_number')}".strip()
+        )
+
     return {"message": "Delivery started"}
 
 
-# ==========================================================
-# DELIVERY MARKS ORDER COLLECTED
-# ==========================================================
-@router.post("/{order_id}/delivery/collected")
-def delivery_collected(order_id: str, current_user: dict = Depends(get_current_user)):
+import random
 
+# ==========================================================
+# DELIVERY MARKS ORDER COLLECTED (REPLACED BY OTP FLOW)
+# ==========================================================
+@router.post("/{order_id}/delivery/send-otp")
+def delivery_send_otp(order_id: str, current_user: dict = Depends(get_current_user)):
     if current_user["role"] != "delivery":
         raise HTTPException(status_code=403, detail="Delivery only")
 
@@ -369,28 +412,37 @@ def delivery_collected(order_id: str, current_user: dict = Depends(get_current_u
     if str(order.get("delivery_id")) != str(current_user["_id"]):
         raise HTTPException(status_code=403, detail="Not your order")
 
+    # Generate a 4-digit OTP
+    otp = str(random.randint(1000, 9999))
+    
+    # Send OTP via Email
+    user = users_collection.find_one({"_id": order["user_id"]})
+    user_email = user.get("email")
+    user_name = user.get("payout_details", {}).get("full_name", "Valued User")
+    
+    email_sent = send_otp_email(user_email, otp, user_name)
+    
     orders_collection.update_one(
         {"_id": oid},
-        {
-            "$set": {
-                "status": "collected",
-                "delivery_status": "collected",
-                "collected_at": datetime.utcnow(),
-            }
-        },
+        {"$set": {"otp": otp}}
     )
 
-    return {"message": "Order collected"}
+    return {
+        "message": "OTP generated and sent to user's registered email",
+        "otp": otp if not email_sent else "Sent to email", # Return OTP for testing if email fails
+        "email_sent": email_sent
+    }
 
-
-# ==========================================================
-# COMPLETE ORDER (PAYMENT SUCCESS)
-# ==========================================================
-@router.post("/{order_id}/complete")
-def complete_order(order_id: str, current_user: dict = Depends(get_current_user)):
-
-    if current_user["role"] not in ["admin", "delivery"]:
-        raise HTTPException(status_code=403, detail="Not allowed")
+@router.post("/{order_id}/delivery/verify-otp")
+def delivery_verify_otp(
+    order_id: str,
+    otp: str = Form(...),
+    final_material: str = Form(...),
+    final_weight: float = Form(...),
+    current_user: dict = Depends(get_current_user)
+):
+    if current_user["role"] != "delivery":
+        raise HTTPException(status_code=403, detail="Delivery only")
 
     oid = validate_object_id(order_id)
     order = orders_collection.find_one({"_id": oid})
@@ -398,6 +450,52 @@ def complete_order(order_id: str, current_user: dict = Depends(get_current_user)
     if not order:
         raise HTTPException(status_code=404, detail="Order not found")
 
+    if str(order.get("delivery_id")) != str(current_user["_id"]):
+        raise HTTPException(status_code=403, detail="Not your order")
+
+    if order.get("otp") != otp:
+        raise HTTPException(status_code=400, detail="Invalid OTP")
+
+    from app.pricing.engine import estimate_price
+    
+    try:
+        price_data = estimate_price(material=final_material, weight=final_weight, confidence=1.0)
+        final_price = price_data["estimated_price"]
+    except Exception as e:
+        print("Pricing engine error:", e)
+        raise HTTPException(status_code=500, detail="Price estimation failed")
+
+    orders_collection.update_one(
+        {"_id": oid},
+        {
+            "$set": {
+                "material": final_material,
+                "weight": final_weight,
+                "estimated_price": final_price,
+                "status": "collected",
+                "delivery_status": "collected",
+                "collected_at": datetime.utcnow(),
+            },
+            "$unset": {"otp": ""}  # Remove OTP after successful verification
+        }
+    )
+
+    return {
+        "message": "Order collected successfully",
+        "final_price": final_price,
+        "material": final_material,
+        "weight": final_weight
+    }
+
+# ==========================================================
+# COMPLETE ORDER (PAYMENT SUCCESS)
+# ==========================================================@router.post("/{order_id}/complete")
+def complete_order(order_id: str, current_user: dict = Depends(get_current_user)):
+    # Legacy manual completion - keep for safety or admin override
+    if current_user["role"] not in ["admin", "delivery"]:
+        raise HTTPException(status_code=403, detail="Not allowed")
+
+    oid = validate_object_id(order_id)
     orders_collection.update_one(
         {"_id": oid},
         {
@@ -409,8 +507,100 @@ def complete_order(order_id: str, current_user: dict = Depends(get_current_user)
             }
         },
     )
-
     return {"message": "Order completed successfully"}
+
+# ==========================================================
+# EXECUTE PAYPAL PAYOUT (ADMIN)
+# ==========================================================
+@router.post("/{order_id}/payout")
+def execute_payout(order_id: str, current_user: dict = Depends(get_current_user)):
+    if current_user["role"] != "admin":
+        raise HTTPException(status_code=403, detail="Admin access only")
+
+    oid = validate_object_id(order_id)
+    order = orders_collection.find_one({"_id": oid})
+
+    if not order:
+        raise HTTPException(status_code=404, detail="Order not found")
+
+    if order["status"] != "collected":
+        raise HTTPException(status_code=400, detail="Order must be COLLECTED before payout")
+
+    if order.get("payment_status") == "paid":
+        raise HTTPException(status_code=400, detail="Payout already executed")
+
+    # Fetch user for payout details
+    user = users_collection.find_one({"_id": order["user_id"]})
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    user_email = user.get("email") 
+    # Use dedicated PayPal email if provided in payout details
+    payout_details = user.get("payout_details", {})
+    paypal_email = payout_details.get("paypal_email")
+    
+    # CRITICAL: Use paypal_email if it exists, otherwise fallback (for demo)
+    recipient_email = paypal_email if paypal_email else user_email
+    
+    print(f"Executing Payout - Reg Email: {user_email}, PayPal Email: {paypal_email}, Chosen: {recipient_email}")
+    
+    amount_in_rs = float(order["estimated_price"])
+
+    payout_result = PayPalService.execute_payout(
+        receiver_email=recipient_email,
+        amount_in_inr=amount_in_rs,
+        order_id=str(oid)
+    )
+
+    if payout_result["success"]:
+        from app.core import config
+        amount_usd = amount_in_rs / config.INR_TO_USD_RATE
+
+        orders_collection.update_one(
+            {"_id": oid},
+            {
+                "$set": {
+                    "status": "completed",
+                    "delivery_status": "completed",
+                    "payment_status": "paid",
+                    "payout_details": {
+                        "batch_id": payout_result["batch_id"],
+                        "executed_at": datetime.utcnow(),
+                        "amount_inr": amount_in_rs,
+                        "amount_usd": round(amount_usd, 2),
+                        "receiver": recipient_email,
+                        "gateway": "paypal"
+                    },
+                    "completed_at": datetime.utcnow(),
+                }
+            }
+        )
+
+        # Send invoice email to user
+        payout_data_for_email = {
+            "batch_id": payout_result["batch_id"],
+            "executed_at": datetime.utcnow(),
+            "amount_inr": amount_in_rs,
+            "amount_usd": round(amount_usd, 2),
+            "receiver": recipient_email
+        }
+        send_payment_success_email(
+            to_email=user_email,
+            user_name=user.get("full_name", "Customer"),
+            order_details=order,
+            payout_details=payout_data_for_email
+        )
+
+        return {
+            "message": f"PayPal Payout executed successfully (${amount_usd:.2f} USD)",
+            "batch_id": payout_result["batch_id"],
+            "status": "completed"
+        }
+    else:
+        raise HTTPException(
+            status_code=500,
+            detail=f"PayPal Payout Failed: {payout_result.get('error')}"
+        )
 
 
 # ==========================================================
@@ -527,6 +717,7 @@ def submit_payout_details(
     state: str = Form(...),
     pincode: str = Form(...),
     upi_id: str = Form(...),
+    paypal_email: str = Form(...),
     current_user: dict = Depends(get_current_user),
 ):
 
@@ -576,6 +767,7 @@ def submit_payout_details(
                     "state": state.strip(),
                     "pincode": pincode.strip(),
                     "upi_id": upi_id.strip(),
+                    "paypal_email": paypal_email.strip().lower(),
                     "updated_at": datetime.utcnow(),
                 }
             }
@@ -641,7 +833,7 @@ def get_delivery_assignments(current_user: dict = Depends(get_current_user)):
     orders = list(
         orders_collection.find({
             "delivery_id": delivery_id,
-            "status": {"$in": ["assigned", "collected"]}
+            "status": {"$in": ["assigned", "collected", "completed"]}
         }).sort("created_at", -1)
     )
 

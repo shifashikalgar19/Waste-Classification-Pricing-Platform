@@ -29,5 +29,5 @@ def impurity_penalty(material: str) -> float:
 
 
 def market_factor() -> float:
-    import random
-    return round(random.uniform(0.95, 1.05), 2)
+    # Stable market factor for consistency
+    return 1.0

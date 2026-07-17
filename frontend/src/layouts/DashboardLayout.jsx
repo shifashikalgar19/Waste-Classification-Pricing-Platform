@@ -25,7 +25,7 @@ export default function DashboardLayout() {
     <div className="h-screen flex bg-[#0b0f1a] text-white overflow-hidden overflow-x-hidden">
 
       
-      {/* ================= SIDEBAR (FIXED) ================= */}
+      {/* ================= SIDEBAR================= */}
       <aside className="w-64 bg-black/40 backdrop-blur-xl border-r border-white/10 fixed inset-y-0 left-0 z-40">
         {renderSidebar()}
       </aside>

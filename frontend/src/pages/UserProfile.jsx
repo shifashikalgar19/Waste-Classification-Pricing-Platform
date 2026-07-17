@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { useAuth } from "../context/useAuth";
 
 const API_BASE = "http://127.0.0.1:8000";
@@ -36,7 +36,7 @@ export default function UserProfile() {
 
   /* ================= FETCH USER PROFILE ================= */
 
-  const fetchProfile = async () => {
+  const fetchProfile = useCallback(async () => {
     try {
       const res = await fetch(`${API_BASE}/users/me`, {
         headers: {
@@ -54,11 +54,13 @@ export default function UserProfile() {
     } catch (err) {
       console.error(err);
     }
-  };
+  }, [user]);
 
   useEffect(() => {
-    fetchProfile();
-  }, []);
+    if (user?.access_token) {
+      fetchProfile();
+    }
+  }, [user, fetchProfile]);
 
   /* =========================================================
      UPDATE PROFILE

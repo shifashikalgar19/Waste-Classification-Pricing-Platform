@@ -1,4 +1,4 @@
-import { useEffect, useState, useMemo } from "react";
+import { useEffect, useState, useMemo, useCallback } from "react";
 import { useAuth } from "../../context/useAuth";
 
 const API_BASE = "http://127.0.0.1:8000";
@@ -12,7 +12,7 @@ export default function AdminDelivery() {
 
   /* ================= FETCH DATA ================= */
 
-  const fetchOverview = async () => {
+  const fetchOverview = useCallback(async () => {
     try {
       const res = await fetch(`${API_BASE}/orders/admin/delivery/overview`, {
         headers: {
@@ -30,7 +30,7 @@ export default function AdminDelivery() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [user]);
 
   const fetchAgentOrders = async (agentId) => {
     try {
@@ -57,7 +57,7 @@ export default function AdminDelivery() {
     if (user?.access_token) {
       fetchOverview();
     }
-  }, [user]);
+  }, [user, fetchOverview]);
 
   /* ================= STATUS DISPLAY ================= */
 
@@ -136,7 +136,7 @@ export default function AdminDelivery() {
   return (
     <div className="relative min-h-screen bg-[#0b0f1a] text-white overflow-hidden">
 
-      {/* Background Glow (UNCHANGED) */}
+      {/* Background Glow */}
       <div className="absolute -top-40 -left-40 w-[420px] h-[420px] bg-blue-600/20 blur-[140px] rounded-full" />
       <div className="absolute bottom-[-200px] right-[-200px] w-[420px] h-[420px] bg-cyan-500/20 blur-[140px] rounded-full" />
 
@@ -152,7 +152,7 @@ export default function AdminDelivery() {
           </p>
         </div>
 
-        {/* KPI SUMMARY (UNCHANGED) */}
+        {/* KPI SUMMARY */}
         <div className="grid md:grid-cols-4 gap-6 mb-14">
           <KPI label="Active Deliveries" value={totalActive} />
           <KPI label="Completed Deliveries" value={totalCompleted} />
@@ -164,7 +164,7 @@ export default function AdminDelivery() {
           <KPI label="Disabled Agents" value={disabledCount} danger />
         </div>
 
-        {/* DELIVERY TABLE (UNCHANGED UI) */}
+        {/* DELIVERY TABLE */}
         <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-3xl overflow-hidden">
           <table className="w-full text-left">
             <thead className="bg-white/5 text-gray-300 text-sm">
@@ -205,11 +205,10 @@ export default function AdminDelivery() {
 
                       <td className="px-6 py-5">
                         <span
-                          className={`px-4 py-1.5 rounded-full text-sm ${
-                            agent.disabled
-                              ? "bg-red-500/15 text-red-400"
-                              : "bg-green-500/15 text-green-400"
-                          }`}
+                          className={`px-4 py-1.5 rounded-full text-sm ${agent.disabled
+                            ? "bg-red-500/15 text-red-400"
+                            : "bg-green-500/15 text-green-400"
+                            }`}
                         >
                           {agent.disabled ? "DISABLED" : "ACTIVE"}
                         </span>
@@ -250,7 +249,7 @@ export default function AdminDelivery() {
         </div>
       </section>
 
-      {/* AGENT DETAIL MODAL (UPGRADED ONLY HERE) */}
+      {/* AGENT DETAIL MODAL */}
       {selectedAgent && (
         <div className="fixed inset-0 bg-black/70 backdrop-blur-md flex items-center justify-center z-50">
           <div className="bg-[#0f172a] border border-white/10 rounded-2xl p-8 w-full max-w-2xl max-h-[85vh] overflow-y-auto">
@@ -314,20 +313,19 @@ export default function AdminDelivery() {
   );
 }
 
-/* ================= COMPONENTS (UNCHANGED) ================= */
+/* ================= COMPONENTS================= */
 
 function KPI({ label, value, highlight, danger }) {
   return (
     <div className="bg-white/5 border border-white/10 rounded-xl p-6 backdrop-blur-xl">
       <p className="text-gray-400 text-sm">{label}</p>
       <p
-        className={`text-3xl font-bold mt-2 ${
-          highlight
-            ? "text-green-400"
-            : danger
+        className={`text-3xl font-bold mt-2 ${highlight
+          ? "text-green-400"
+          : danger
             ? "text-red-400"
             : "text-cyan-400"
-        }`}
+          }`}
       >
         {value}
       </p>

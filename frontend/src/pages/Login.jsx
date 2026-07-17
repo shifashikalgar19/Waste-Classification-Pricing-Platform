@@ -14,7 +14,6 @@ export default function Login() {
   const navigate = useNavigate();
   const location = useLocation();
 
-  // ✅ Detect signup success
   useEffect(() => {
     const params = new URLSearchParams(location.search);
     if (params.get("signup") === "success") {

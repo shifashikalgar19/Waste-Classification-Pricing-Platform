@@ -7,6 +7,28 @@ export default function DeliveryDashboard() {
   const [locationStatus, setLocationStatus] = useState("Detecting location...");
   const [error, setError] = useState("");
 
+  const [stats, setStats] = useState({ assigned: 0, completed: 0 });
+
+  useEffect(() => {
+    if (!user?.access_token) return;
+
+    const fetchStats = async () => {
+      try {
+        const res = await fetch(`${API_BASE}/orders/delivery/my-assignments`, {
+          headers: { Authorization: `Bearer ${user.access_token}` },
+        });
+        const data = await res.json();
+        const assigned = data.filter(o => o.status === "assigned" || o.delivery_status === "in_transit").length;
+        const completed = data.filter(o => o.status === "completed").length;
+        setStats({ assigned, completed });
+      } catch (err) {
+        console.error("Stats fetch error", err);
+      }
+    };
+
+    fetchStats();
+  }, [user]);
+
   // -----------------------------
   // SAVE DELIVERY LOCATION
   // -----------------------------
@@ -14,7 +36,7 @@ export default function DeliveryDashboard() {
     if (!user?.access_token) return;
 
     if (!navigator.geolocation) {
-      setError("Geolocation not supported by browser");
+      setTimeout(() => setError("Geolocation not supported by browser"), 0);
       return;
     }
 
@@ -30,7 +52,7 @@ export default function DeliveryDashboard() {
           );
 
           setLocationStatus("Live location synced");
-        } catch (err) {
+        } catch {
           setError("Failed to save location");
         }
       },
@@ -47,12 +69,12 @@ export default function DeliveryDashboard() {
   return (
     <div className="relative min-h-screen text-white">
 
-      {/* BACKGROUND GLOWS */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
         <div className="absolute -top-40 -left-40 w-[420px] h-[420px] bg-blue-600/25 blur-[140px] rounded-full" />
         <div className="absolute bottom-[-200px] right-[-200px] w-[420px] h-[420px] bg-cyan-500/25 blur-[140px] rounded-full" />
+      </div>
 
-      <div className="relative z-10 max-w-7xl mx-auto space-y-10">
+      <div className="relative z-10 max-w-7xl mx-auto px-6 py-16 space-y-10">
 
         {/* HEADER */}
         <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-2xl p-8">
@@ -68,17 +90,18 @@ export default function DeliveryDashboard() {
         <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-6">
 
           {/* LOCATION */}
-          <div className="bg-white/5 border border-white/10 rounded-xl p-6">
+          <div className="bg-white/10 border border-white/10 rounded-xl p-6 backdrop-blur-md">
             <p className="text-sm text-gray-400 mb-1">
               Location Status
             </p>
-            <p className="text-lg font-semibold text-cyan-400">
+            <p className="text-lg font-semibold text-cyan-400 flex items-center gap-2">
+              <span className="w-2 h-2 rounded-full bg-cyan-400 animate-pulse" />
               {locationStatus}
             </p>
           </div>
 
           {/* AVAILABILITY */}
-          <div className="bg-white/5 border border-white/10 rounded-xl p-6">
+          <div className="bg-white/10 border border-white/10 rounded-xl p-6 backdrop-blur-md">
             <p className="text-sm text-gray-400 mb-1">
               Availability
             </p>
@@ -88,22 +111,22 @@ export default function DeliveryDashboard() {
           </div>
 
           {/* ASSIGNED ORDERS */}
-          <div className="bg-white/5 border border-white/10 rounded-xl p-6">
+          <div className="bg-white/10 border border-white/10 rounded-xl p-6 backdrop-blur-md">
             <p className="text-sm text-gray-400 mb-1">
               Assigned Pickups
             </p>
-            <p className="text-lg font-semibold">
-              0
+            <p className="text-2xl font-bold text-white">
+              {stats.assigned}
             </p>
           </div>
 
           {/* COMPLETED */}
-          <div className="bg-white/5 border border-white/10 rounded-xl p-6">
+          <div className="bg-white/10 border border-white/10 rounded-xl p-6 backdrop-blur-md">
             <p className="text-sm text-gray-400 mb-1">
-              Completed Today
+              Total Completed
             </p>
-            <p className="text-lg font-semibold">
-              0
+            <p className="text-2xl font-bold text-emerald-400">
+              {stats.completed}
             </p>
           </div>
         </div>
@@ -123,7 +146,6 @@ export default function DeliveryDashboard() {
           </div>
         )}
       </div>
-    </div>
     </div>
   );
 }

@@ -55,7 +55,6 @@ export default function AdminDashboard() {
   return (
     <div className="relative min-h-screen bg-[#0b0f1a] text-white overflow-hidden">
 
-      {/* BACKGROUND GLOWS (BLUE / CYAN ONLY) */}
       <div className="absolute -top-40 -left-40 w-[420px] h-[420px] bg-blue-600/20 blur-[140px] rounded-full" />
       <div className="absolute bottom-[-200px] right-[-200px] w-[420px] h-[420px] bg-cyan-500/20 blur-[140px] rounded-full" />
 
@@ -74,7 +73,6 @@ export default function AdminDashboard() {
           </p>
         </div>
 
-        {/* QUICK ACTIONS */}
         <h2 className="text-xl font-semibold mb-6">
           Quick Actions
         </h2>

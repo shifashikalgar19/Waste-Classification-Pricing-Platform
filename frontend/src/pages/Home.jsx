@@ -4,7 +4,6 @@ export default function Home() {
   return (
     <div className="relative min-h-screen bg-[#0b0f1a] text-white overflow-hidden">
 
-      {/* BACKGROUND ORBS */}
       <div className="absolute top-[-200px] left-[-200px] w-[500px] h-[500px] bg-blue-600/30 rounded-full blur-[120px]" />
       <div className="absolute bottom-[-200px] right-[-200px] w-[500px] h-[500px] bg-cyan-500/30 rounded-full blur-[120px]" />
 
@@ -53,7 +52,6 @@ export default function Home() {
             </div>
           </div>
 
-          {/* RIGHT – AI GLASS CARD */}
           <div className="relative">
             <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-3xl p-10 shadow-2xl">
               <h3 className="text-xl font-semibold mb-6">

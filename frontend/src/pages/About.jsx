@@ -2,11 +2,9 @@ export default function About() {
   return (
     <div className="relative min-h-screen bg-[#0b0f1a] text-white overflow-hidden">
 
-      {/* BACKGROUND ORBS */}
       <div className="absolute -top-40 -left-40 w-[420px] h-[420px] bg-blue-600/25 blur-[140px] rounded-full" />
       <div className="absolute bottom-[-200px] right-[-200px] w-[420px] h-[420px] bg-cyan-500/25 blur-[140px] rounded-full" />
 
-      {/* HERO */}
       <section className="relative z-10 max-w-7xl mx-auto px-6 min-h-[90vh] flex items-center">
         <div>
           <h1 className="text-5xl md:text-6xl font-extrabold leading-tight mb-6">
@@ -45,8 +43,6 @@ export default function About() {
         </div>
       </section>
 
-
-      {/* PROBLEM + SOLUTION (COMBINED FLOW) */}
       <section className="relative z-10 max-w-7xl mx-auto px-6 py-28 grid md:grid-cols-2 gap-12">
        <div className="bg-white/5 border border-white/10 rounded-2xl p-8">
           <div className="flex items-center gap-3 mb-4">
@@ -77,7 +73,6 @@ export default function About() {
         </div>
       </section>
 
-      {/* TECHNOLOGY STACK (DENSE GRID) */}
       <section className="relative z-10 max-w-7xl mx-auto px-6 py-20">
         <h2 className="text-4xl font-bold mb-14 text-center">
           Technology & Architecture
@@ -110,7 +105,6 @@ export default function About() {
         </div>
       </section>
 
-      {/* FINAL STATEMENT */}
       <section className="relative z-10 max-w-5xl mx-auto px-6 pb-20 text-center">
         <h2 className="text-3xl font-bold mb-4">
           Academic & Industry Relevance

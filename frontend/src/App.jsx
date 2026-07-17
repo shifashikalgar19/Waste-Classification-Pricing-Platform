@@ -26,9 +26,13 @@ import AdminOrders from "./pages/admin/AdminOrders";
 import AdminUsers from "./pages/admin/AdminUsers";
 import AdminProfile from "./pages/admin/AdminProfile";
 import AdminDelivery from "./pages/admin/AdminDelivery";
+import AdminPayments from "./pages/admin/AdminPayments";
 
 // Delivery
 import DeliveryDashboard from "./pages/delivery/DeliveryDashboard";
+import DeliveryAssignments from "./pages/delivery/DeliveryAssignments";
+import DeliveryCompleted from "./pages/delivery/DeliveryCompleted";
+import DeliveryProfile from "./pages/delivery/DeliveryProfile";
 
 
 export default function App() {
@@ -83,6 +87,7 @@ export default function App() {
           <Route path="users" element={<AdminUsers />} />
           <Route path="profile" element={<AdminProfile />} />
           <Route path="delivery" element={<AdminDelivery />} />
+          <Route path="payments" element={<AdminPayments />} />
         </Route>
 
         {/* ================= DELIVERY DASHBOARD ================= */}
@@ -95,6 +100,9 @@ export default function App() {
           }
         >
           <Route index element={<DeliveryDashboard />} />
+          <Route path="assignments" element={<DeliveryAssignments />} />
+          <Route path="completed" element={<DeliveryCompleted />} />
+          <Route path="profile" element={<DeliveryProfile />} />
 
         </Route>
       </Routes>

@@ -1,6 +1,7 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { useAuth } from "../../context/useAuth";
 import UserViewModal from "../../components/admin/UserViewModal";
+import MessageModal from "../../components/modals/MessageModal";
 
 export default function AdminUsers() {
   const { user } = useAuth();
@@ -16,22 +17,23 @@ export default function AdminUsers() {
   const [newRole, setNewRole] = useState("admin");
   const [tempPassword, setTempPassword] = useState("");
   const [creating, setCreating] = useState(false);
+  const [messageConfig, setMessageConfig] = useState(null);
 
   // --------------------------------------------------
   // FETCH USERS (ADMIN)
   // --------------------------------------------------
-  const fetchUsers = async () => {
+  const fetchUsers = useCallback(async () => {
     const res = await fetch("http://127.0.0.1:8000/users/all", {
       headers: {
         Authorization: `Bearer ${user.access_token}`,
       },
     });
     setUsers(await res.json());
-  };
+  }, [user]);
 
   useEffect(() => {
     if (user?.access_token) fetchUsers();
-  }, [user]);
+  }, [user, fetchUsers]);
 
   // --------------------------------------------------
   // CREATE ADMIN / DELIVERY
@@ -55,19 +57,28 @@ export default function AdminUsers() {
         }),
       });
 
+      setMessageConfig({
+        type: "success",
+        title: "Account Created",
+        message: `${newRole.toUpperCase()} account for ${newEmail} has been created successfully.`,
+      });
       setShowCreate(false);
       setNewEmail("");
       setTempPassword("");
       fetchUsers();
     } catch {
-      alert("Failed to create account");
+      setMessageConfig({
+        type: "error",
+        title: "Creation Failed",
+        message: "Failed to create the staff account. Please check the details and try again.",
+      });
     } finally {
       setCreating(false);
     }
   };
 
   // --------------------------------------------------
-  // FILTER LOGIC (REALISTIC)
+  // FILTER LOGIC
   // --------------------------------------------------
   const filteredUsers = users.filter((u) => {
     const searchMatch = u.email.toLowerCase().includes(search.toLowerCase());
@@ -89,8 +100,8 @@ export default function AdminUsers() {
     role === "admin"
       ? "bg-purple-500/15 text-purple-400"
       : role === "delivery"
-      ? "bg-blue-500/15 text-blue-400"
-      : "bg-emerald-500/15 text-emerald-400";
+        ? "bg-blue-500/15 text-blue-400"
+        : "bg-emerald-500/15 text-emerald-400";
 
   const statusBadge = (user) => {
     if (user.deleted)
@@ -106,9 +117,6 @@ export default function AdminUsers() {
     return "ACTIVE";
   };
 
-  // --------------------------------------------------
-  // RENDER
-  // --------------------------------------------------
   return (
     <div className="text-white max-w-7xl mx-auto">
 
@@ -260,6 +268,14 @@ export default function AdminUsers() {
             </div>
           </div>
         </div>
+      )}
+      {messageConfig && (
+        <MessageModal
+          type={messageConfig.type}
+          title={messageConfig.title}
+          message={messageConfig.message}
+          onClose={() => setMessageConfig(null)}
+        />
       )}
     </div>
   );

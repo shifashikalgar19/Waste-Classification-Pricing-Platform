@@ -1,7 +1,16 @@
 import { useEffect, useState, useMemo, useCallback } from "react";
 import { useAuth } from "../../context/useAuth";
+import MessageModal from "../../components/modals/MessageModal";
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL;
+
+const statusPriority = {
+  pending: 1,
+  assigned: 2,
+  collected: 3,
+  completed: 4,
+  rejected: 5,
+};
 
 export default function AdminOrders() {
   const { user } = useAuth();
@@ -13,9 +22,10 @@ export default function AdminOrders() {
   const [rejecting, setRejecting] = useState(false);
   const [filter, setFilter] = useState("all");
   const [confirmApprove, setConfirmApprove] = useState(null);
+  const [messageConfig, setMessageConfig] = useState(null);
 
   /* =========================================================
-     FETCH ORDERS (REAL-TIME POLLING)
+     FETCH ORDERS 
   ========================================================= */
   const fetchOrders = useCallback(async () => {
     if (!user?.access_token) return;
@@ -43,17 +53,6 @@ export default function AdminOrders() {
     return () => clearInterval(interval);
   }, [fetchOrders]);
 
-  /* =========================================================
-     SORTING PRIORITY (Professional Workflow Order)
-  ========================================================= */
-  const statusPriority = {
-    pending: 1,
-    assigned: 2,
-    collected: 3,
-    completed: 4,
-    rejected: 5,
-  };
-
   const sortedOrders = useMemo(() => {
     return [...orders].sort(
       (a, b) => statusPriority[a.status] - statusPriority[b.status]
@@ -69,16 +68,41 @@ export default function AdminOrders() {
      ACTIONS
   ========================================================= */
   const approveOrder = async (id) => {
-    await fetch(`${API_BASE}/orders/${id}/approve`, {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${user.access_token}`,
-      },
-    });
+    try {
+      const res = await fetch(`${API_BASE}/orders/${id}/approve`, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${user.access_token}`,
+        },
+      });
 
-    setConfirmApprove(null);
-    setSelectedOrder(null);
-    fetchOrders();
+      const data = await res.json();
+
+      if (!res.ok) {
+        setMessageConfig({
+          type: "error",
+          title: "Approval Failed",
+          message: data.detail || "Failed to approve order",
+        });
+        return;
+      }
+
+      setMessageConfig({
+        type: "success",
+        title: "Order Approved",
+        message: "Order has been approved and assigned to a delivery partner.",
+      });
+      fetchOrders();
+    } catch (err) {
+      setMessageConfig({
+        type: "error",
+        title: "Network Error",
+        message: "Failed to connect to the server.",
+      });
+    } finally {
+      setConfirmApprove(null);
+      setSelectedOrder(null);
+    }
   };
 
   const rejectOrder = async () => {
@@ -101,53 +125,86 @@ export default function AdminOrders() {
     fetchOrders();
   };
 
+  const executePayout = async (id) => {
+    try {
+      const res = await fetch(`${API_BASE}/orders/${id}/payout`, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${user.access_token}`,
+        },
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        setMessageConfig({
+          type: "error",
+          title: "Payout Failed",
+          message: data.detail || "Failed to execute payout",
+        });
+        return;
+      }
+
+      setMessageConfig({
+        type: "success",
+        title: "Payout Successful",
+        message: "The payout has been executed successfully via PayPal!",
+      });
+      fetchOrders();
+      setSelectedOrder(null);
+    } catch (err) {
+      setMessageConfig({
+        type: "error",
+        title: "Network Error",
+        message: "Failed to connect to the server.",
+      });
+    }
+  };
+
   /* =========================================================
      STATUS BADGE
   ========================================================= */
-const getDisplayStatus = (order) => {
-  if (order.delivery_status === "in_transit") {
-    return {
-      text: "DELIVERY ON THE WAY",
-      style: "bg-yellow-500/15 text-yellow-400",
+  const getDisplayStatus = (order) => {
+    if (order.delivery_status === "in_transit") {
+      return {
+        text: "DELIVERY ON THE WAY",
+        style: "bg-yellow-500/15 text-yellow-400",
+      };
+    }
+
+    const map = {
+      pending: {
+        text: "PENDING",
+        style: "bg-yellow-500/15 text-yellow-400",
+      },
+      assigned: {
+        text: "ASSIGNED",
+        style: "bg-blue-500/15 text-blue-400",
+      },
+      collected: {
+        text: "COLLECTED",
+        style: "bg-cyan-500/15 text-cyan-400",
+      },
+      completed: {
+        text: "COMPLETED",
+        style: "bg-green-500/15 text-green-400",
+      },
+      rejected: {
+        text: "REJECTED",
+        style: "bg-red-500/15 text-red-400",
+      },
     };
-  }
 
-  const map = {
-    pending: {
-      text: "PENDING",
-      style: "bg-yellow-500/15 text-yellow-400",
-    },
-    assigned: {
-      text: "ASSIGNED",
-      style: "bg-blue-500/15 text-blue-400",
-    },
-    collected: {
-      text: "COLLECTED",
-      style: "bg-cyan-500/15 text-cyan-400",
-    },
-    completed: {
-      text: "COMPLETED",
-      style: "bg-green-500/15 text-green-400",
-    },
-    rejected: {
-      text: "REJECTED",
-      style: "bg-red-500/15 text-red-400",
-    },
+    return map[order.status] || {
+      text: order.status?.toUpperCase(),
+      style: "bg-gray-500/15 text-gray-400",
+    };
   };
-
-  return map[order.status] || {
-    text: order.status?.toUpperCase(),
-    style: "bg-gray-500/15 text-gray-400",
-  };
-};
 
   const renderLocation = (order) => {
     return order?.location?.address?.display_name || "Location not available";
   };
 
-  /* =========================================================
-     RENDER
-  ========================================================= */
   return (
     <div className="min-h-screen bg-[#0b0f1a] text-white px-6 py-16">
 
@@ -166,11 +223,10 @@ const getDisplayStatus = (order) => {
             <button
               key={f}
               onClick={() => setFilter(f)}
-              className={`px-5 py-2 rounded-full text-sm font-medium transition ${
-                filter === f
-                  ? "bg-cyan-500/20 text-cyan-400"
-                  : "bg-white/5 text-gray-400 hover:bg-white/10"
-              }`}
+              className={`px-5 py-2 rounded-full text-sm font-medium transition ${filter === f
+                ? "bg-cyan-500/20 text-cyan-400"
+                : "bg-white/5 text-gray-400 hover:bg-white/10"
+                }`}
             >
               {f.charAt(0).toUpperCase() + f.slice(1)}
             </button>
@@ -215,15 +271,15 @@ const getDisplayStatus = (order) => {
 
                 <td className="px-6 py-5">
                   {(() => {
-                        const status = getDisplayStatus(o);
-                        return (
-                          <span
-                            className={`px-4 py-1.5 rounded-full text-sm font-medium ${status.style}`}
-                          >
-                            {status.text}
-                          </span>
-                        );
-                      })()}
+                    const status = getDisplayStatus(o);
+                    return (
+                      <span
+                        className={`px-4 py-1.5 rounded-full text-sm font-medium ${status.style}`}
+                      >
+                        {status.text}
+                      </span>
+                    );
+                  })()}
                 </td>
 
                 <td className="px-6 py-5">
@@ -278,7 +334,7 @@ const getDisplayStatus = (order) => {
                 <Info label="Material" value={selectedOrder.material} />
                 <Info label="Weight" value={`${selectedOrder.weight} kg`} />
                 <Info
-                  label="Estimated Price"
+                  label={(selectedOrder.status === "collected" || selectedOrder.status === "completed") ? "Final Price" : "Estimated Price"}
                   value={`₹ ${selectedOrder.estimated_price}`}
                   highlight
                 />
@@ -317,6 +373,18 @@ const getDisplayStatus = (order) => {
                 </button>
               </div>
             )}
+
+            {selectedOrder.status === "collected" && selectedOrder.payment_status !== "paid" && (
+              <div className="p-6 border-t border-white/10">
+                <button
+                  onClick={() => executePayout(selectedOrder._id)}
+                  className="w-full py-4 rounded-xl bg-emerald-500 hover:bg-emerald-600 font-bold text-lg shadow-lg shadow-emerald-500/20 transition-all flex items-center justify-center gap-2"
+                >
+                  <span className="material-icons-outlined">payments</span>
+                  Execute PayPal Payout ($)
+                </button>
+              </div>
+            )}
           </div>
         </div>
       )}
@@ -348,17 +416,24 @@ const getDisplayStatus = (order) => {
           </div>
         </div>
       )}
+
+      {messageConfig && (
+        <MessageModal
+          type={messageConfig.type}
+          title={messageConfig.title}
+          message={messageConfig.message}
+          onClose={() => setMessageConfig(null)}
+        />
+      )}
     </div>
   );
 }
 
-/* Small Info Component */
 function Info({ label, value, highlight, full }) {
   return (
     <div
-      className={`bg-white/5 p-4 rounded-xl border border-white/10 ${
-        full ? "col-span-2" : ""
-      }`}
+      className={`bg-white/5 p-4 rounded-xl border border-white/10 ${full ? "col-span-2" : ""
+        }`}
     >
       <p className="text-gray-400 mb-1">{label}</p>
       <p className={`${highlight ? "text-green-400 font-semibold" : "text-white"}`}>

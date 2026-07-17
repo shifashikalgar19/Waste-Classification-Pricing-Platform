@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useAuth } from "../../context/useAuth";
 import { MapPin, Mail, Shield, AlertTriangle, AlertCircle, CheckCircle2, XCircle, Trash2, Ban } from "lucide-react";
 
@@ -9,13 +9,7 @@ export default function UserViewModal({ user, onClose, onActionComplete }) {
   const [activeOrders, setActiveOrders] = useState(null);
   const [loadingOrders, setLoadingOrders] = useState(false);
 
-  useEffect(() => {
-    if (user && !user.deleted) {
-      fetchActiveOrders();
-    }
-  }, [user]);
-
-  const fetchActiveOrders = async () => {
+  const fetchActiveOrders = useCallback(async () => {
     try {
       setLoadingOrders(true);
       const res = await fetch(`http://127.0.0.1:8000/users/${user._id}/active-orders`, {
@@ -25,12 +19,18 @@ export default function UserViewModal({ user, onClose, onActionComplete }) {
         const data = await res.json();
         setActiveOrders(data.count);
       }
-    } catch (err) {
-      console.error("Failed to fetch active orders", err);
+    } catch {
+      console.error("Failed to fetch active orders");
     } finally {
       setLoadingOrders(false);
     }
-  };
+  }, [user, admin]);
+
+  useEffect(() => {
+    if (user && !user.deleted) {
+      fetchActiveOrders();
+    }
+  }, [user, fetchActiveOrders]);
 
   if (!user) return null;
 
@@ -68,7 +68,7 @@ export default function UserViewModal({ user, onClose, onActionComplete }) {
       }
       onClose();
       onActionComplete();
-    } catch (err) {
+    } catch {
       setErrorMsg("An error occurred. Please try again.");
       setConfirmAction(null);
     }
@@ -88,7 +88,7 @@ export default function UserViewModal({ user, onClose, onActionComplete }) {
       }
       onClose();
       onActionComplete();
-    } catch (err) {
+    } catch {
       setErrorMsg("An error occurred. Please try again.");
       setConfirmAction(null);
     }
@@ -290,8 +290,8 @@ export default function UserViewModal({ user, onClose, onActionComplete }) {
               <button
                 onClick={confirmAction === "disable" ? handleDisable : handleDelete}
                 className={`px-5 py-2.5 rounded-xl font-semibold transition-all sm:w-auto w-full flex items-center justify-center gap-2 ${confirmAction === "disable"
-                    ? "bg-orange-500 hover:bg-orange-600 text-white shadow-lg shadow-orange-500/20"
-                    : "bg-red-500 hover:bg-red-600 text-white shadow-lg shadow-red-500/20"
+                  ? "bg-orange-500 hover:bg-orange-600 text-white shadow-lg shadow-orange-500/20"
+                  : "bg-red-500 hover:bg-red-600 text-white shadow-lg shadow-red-500/20"
                   }`}
               >
                 {confirmAction === "disable" ? <Ban className="w-4 h-4" /> : <Trash2 className="w-4 h-4" />}

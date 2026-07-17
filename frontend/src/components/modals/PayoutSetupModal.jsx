@@ -14,6 +14,7 @@ export default function PayoutSetupModal({ token, orderId, onClose }) {
     state: "",
     pincode: "",
     upi_id: "",
+    paypal_email: "",
   });
 
   const [loading, setLoading] = useState(false);
@@ -110,8 +111,9 @@ export default function PayoutSetupModal({ token, orderId, onClose }) {
           <Input label="State" name="state" value={form.state} onChange={handleChange} />
           <Input label="Pincode" name="pincode" value={form.pincode} onChange={handleChange} />
 
-          <div className="md:col-span-2">
+          <div className="md:col-span-2 grid md:grid-cols-2 gap-6">
             <Input label="UPI ID" name="upi_id" value={form.upi_id} onChange={handleChange} />
+            <Input label="PayPal Sandbox Email (Required for Dashboard)" name="paypal_email" value={form.paypal_email} onChange={handleChange} />
           </div>
 
         </div>

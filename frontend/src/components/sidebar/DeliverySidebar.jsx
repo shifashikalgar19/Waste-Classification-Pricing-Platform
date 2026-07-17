@@ -33,6 +33,59 @@ export default function DeliverySidebar() {
           Dashboard
         </NavLink>
 
+        {/* MY ASSIGNMENTS */}
+        <NavLink
+          to="/delivery/assignments"
+          className={({ isActive }) =>
+            `flex items-center gap-3 px-4 py-3 rounded-lg transition ${
+              isActive
+                ? "bg-green-500/15 text-green-400"
+                : "text-gray-400 hover:bg-white/5 hover:text-white"
+            }`
+          }
+        >
+          <span className="material-icons-outlined text-xl">
+            local_shipping
+          </span>
+          My Assignments
+        </NavLink>
+
+        {/* COMPLETED */}
+        <NavLink
+          to="/delivery/completed"
+          className={({ isActive }) =>
+            `flex items-center gap-3 px-4 py-3 rounded-lg transition ${
+              isActive
+                ? "bg-green-500/15 text-green-400"
+                : "text-gray-400 hover:bg-white/5 hover:text-white"
+            }`
+          }
+        >
+          <span className="material-icons-outlined text-xl">
+            task_alt
+          </span>
+          Completed Orders
+        </NavLink>
+
+        <div className="my-4 border-t border-white/10" />
+
+        {/* ACCOUNT */}
+        <NavLink
+          to="/delivery/profile"
+          className={({ isActive }) =>
+            `flex items-center gap-3 px-4 py-3 rounded-lg transition ${
+              isActive
+                ? "bg-green-500/15 text-green-400"
+                : "text-gray-400 hover:bg-white/5 hover:text-white"
+            }`
+          }
+        >
+          <span className="material-icons-outlined text-xl">
+            manage_accounts
+          </span>
+          Account
+        </NavLink>
+
       </nav>
 
       {/* LOGOUT */}

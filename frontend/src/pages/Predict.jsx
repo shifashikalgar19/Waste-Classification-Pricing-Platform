@@ -46,6 +46,11 @@ export default function Predict() {
   const estimatePrice = async () => {
     if (!image || !weight) return;
 
+    if (parseFloat(weight) < 2) {
+      setError("Please collect more scrap for order because for below 2kg the delivery person will not go to collect delivery");
+      return;
+    }
+
     setLoading(true);
     setError("");
 
@@ -64,9 +69,13 @@ export default function Predict() {
   // STEP 3: Place Order (FIXED)
   // --------------------------------
   const handlePlaceOrder = () => {
-    // 🚫 DO NOT REDIRECT AUTOMATICALLY
     if (!user || !user.access_token) {
       setError("Please login to place an order");
+      return;
+    }
+
+    if (parseFloat(weight) < 2) {
+      setError("Please collect more scrap for order because for below 2kg the delivery person will not go to collect delivery");
       return;
     }
 
@@ -91,7 +100,7 @@ export default function Predict() {
           );
 
           navigate("/dashboard/orders");
-        } catch (err) {
+        } catch {
           setError("Failed to place order. Please try again.");
         }
       },
@@ -167,11 +176,10 @@ export default function Predict() {
           <button
             onClick={analyzeImage}
             disabled={!image || loading}
-            className={`w-full py-3 rounded-xl font-semibold transition ${
-              !image || loading
-                ? "bg-gray-600 cursor-not-allowed"
-                : "bg-gradient-to-r from-blue-500 to-cyan-500 hover:opacity-90"
-            }`}
+            className={`w-full py-3 rounded-xl font-semibold transition ${!image || loading
+              ? "bg-gray-600 cursor-not-allowed"
+              : "bg-gradient-to-r from-blue-500 to-cyan-500 hover:opacity-90"
+              }`}
           >
             {loading ? "Analyzing Image..." : "Run AI Analysis"}
           </button>
@@ -211,11 +219,10 @@ export default function Predict() {
             <button
               onClick={estimatePrice}
               disabled={!weight || loading}
-              className={`w-full mt-8 py-3 rounded-xl font-semibold transition ${
-                !weight || loading
-                  ? "bg-gray-600 cursor-not-allowed"
-                  : "bg-gradient-to-r from-green-500 to-emerald-500 hover:opacity-90"
-              }`}
+              className={`w-full mt-8 py-3 rounded-xl font-semibold transition ${!weight || loading
+                ? "bg-gray-600 cursor-not-allowed"
+                : "bg-gradient-to-r from-green-500 to-emerald-500 hover:opacity-90"
+                }`}
             >
               {loading ? "Calculating Price..." : "Estimate Final Price"}
             </button>
