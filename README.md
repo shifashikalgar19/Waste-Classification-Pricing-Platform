@@ -27,7 +27,7 @@ This project automates waste classification and pricing by combining Computer Vi
 ### Frontend
 - HTML
 - CSS
-- JavaScript
+- 
 
 ### Backend
 - Python
